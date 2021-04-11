@@ -8,4 +8,7 @@ interface ApiService {
 
     @GET("/api/")
     fun getProfiles(@Query("results") results: Int): Single<ProfileResponseDataModule>
+
+    @GET("/api/")
+    suspend fun getProfilesCr(@Query("results") results: Int): ProfileResponseDataModule
 }

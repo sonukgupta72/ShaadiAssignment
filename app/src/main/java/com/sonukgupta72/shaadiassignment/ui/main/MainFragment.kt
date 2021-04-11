@@ -2,6 +2,7 @@ package com.sonukgupta72.shaadiassignment.ui.main
 
 import android.os.Bundle
 import android.text.TextUtils
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,11 +15,13 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.sonukgupta72.shaadiassignment.R
+import com.sonukgupta72.shaadiassignment.corutine.Status
+import com.sonukgupta72.shaadiassignment.databinding.MainFragmentBinding
 import com.sonukgupta72.shaadiassignment.db.DataModel
 import com.sonukgupta72.shaadiassignment.network.ProfileResponseDataModule
 import kotlinx.android.synthetic.main.main_fragment.*
 
-class MainFragment : Fragment() {
+class MainFragment : Fragment(R.layout.main_fragment) {
 
     companion object {
         fun newInstance() = MainFragment()
@@ -28,19 +31,27 @@ class MainFragment : Fragment() {
     private var progressBar: ProgressBar? = null
     private val profiles: MutableList<DataModel> = ArrayList()
     private var profileAdapter: ProfileAdapter? = null
+    private lateinit var binding: MainFragmentBinding
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
-                              savedInstanceState: Bundle?): View {
-        return inflater.inflate(R.layout.main_fragment, container, false)
-    }
+//    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
+//                              savedInstanceState: Bundle?): View {
+//
+//        binding = MainFragment.inflate(, container, false)
+//        return binding
+//    }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding = MainFragmentBinding.bind(view)
         viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
 
         initView()
         getProfileData()
     }
+
+//    override fun onActivityCreated(savedInstanceState: Bundle?) {
+//        super.onActivityCreated(savedInstanceState)
+//    }
 
     private fun initView() {
         val layout: RelativeLayout = RelativeLayout(context)
@@ -49,7 +60,7 @@ class MainFragment : Fragment() {
         params.addRule(RelativeLayout.CENTER_IN_PARENT)
         layout.addView(progressBar, params)
 
-        rv_profiles.layoutManager = LinearLayoutManager(context)
+        binding.rvProfiles.layoutManager = LinearLayoutManager(context)
         profileAdapter = ProfileAdapter(profiles, object : ProfileAdapter.ItemOnclickListener{
             override fun onAccept(item: DataModel, position: Int) {
                 viewModel.updateProfile(item, "Accepted")
@@ -64,18 +75,36 @@ class MainFragment : Fragment() {
     }
 
     private fun getProfileData() {
-        viewModel.getProfiles()
+        viewModel.getProfilesCr().observe(viewLifecycleOwner, Observer {
+            it?.let { resource ->
+                when (resource.status) {
+                    Status.SUCCESS -> {
+                        resource.data?.let { users -> viewModel.onSuccess(users) }
+                    }
+                    Status.ERROR -> {
+//                        recyclerView.visibility = View.VISIBLE
+//                        progressBar.visibility = View.GONE
+                        Toast.makeText(activity, it.msg, Toast.LENGTH_LONG).show()
+                        Log.d("OkHttp", it.msg ?: "Error Occurred!")
+                    }
+                    Status.LOADING -> {
+//                        progressBar.visibility = View.VISIBLE
+//                        recyclerView.visibility = View.GONE
+                    }
+                }
+            }
+        })
 
         viewModel.getResultModel()?.observe(viewLifecycleOwner, Observer<List<DataModel>?> {
             setRecyclerViewData(it)
         })
 
-        viewModel.getError().observe(viewLifecycleOwner, Observer<String> {
-            onApiFail(it)
-        })
-
-        viewModel.getProgress().observe(viewLifecycleOwner, Observer<Boolean> {
-        })
+//        viewModel.getError().observe(viewLifecycleOwner, Observer<String> {
+//            onApiFail(it)
+//        })
+//
+//        viewModel.getProgress().observe(viewLifecycleOwner, Observer<Boolean> {
+//        })
     }
 
     private fun onApiFail(it: String?) {

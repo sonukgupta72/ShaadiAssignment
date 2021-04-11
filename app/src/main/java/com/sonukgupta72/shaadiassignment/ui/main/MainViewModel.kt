@@ -1,15 +1,20 @@
 package com.sonukgupta72.shaadiassignment.ui.main
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.liveData
+import com.sonukgupta72.shaadiassignment.corutine.Resource
 import com.sonukgupta72.shaadiassignment.db.DataModel
 import com.sonukgupta72.shaadiassignment.db.RepositoryManager
+import com.sonukgupta72.shaadiassignment.network.ApiService
 import com.sonukgupta72.shaadiassignment.network.ProfileResponseDataModule
 import com.sonukgupta72.shaadiassignment.network.RtfClient
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.Dispatchers
 
 class MainViewModel : ViewModel() {
 
@@ -18,11 +23,11 @@ class MainViewModel : ViewModel() {
     private val compositeDisposable = CompositeDisposable()
     private val repositoryManager: RepositoryManager = RepositoryManager.getRepositoryManager()
     private var profileList: List<ProfileResponseDataModule.ProfileDataModel>?= null
+    private var apiSservice: ApiService = RtfClient.getApiServices()
 
     fun getProfiles() {
         progressStatus.value = true
-        val service = RtfClient.getApiServices()
-        val call = service.getProfiles(10)
+        val call = apiSservice.getProfiles(10)
         compositeDisposable.add(
             call.subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
@@ -30,7 +35,16 @@ class MainViewModel : ViewModel() {
         )
     }
 
-    private fun onSuccess(profileResponseDataModule: ProfileResponseDataModule) {
+    fun getProfilesCr() = liveData(Dispatchers.IO) {
+        emit(Resource.loading(data = null))
+        try {
+            emit(Resource.success(data = apiSservice.getProfilesCr(10)))
+        } catch (exception: Exception) {
+            emit(Resource.error(data = null, msg = exception.message ?: "Error Occurred!"))
+        }
+    }
+
+    fun onSuccess(profileResponseDataModule: ProfileResponseDataModule) {
         profileList = profileResponseDataModule.results
         repositoryManager.deleteAll()?.let {
             compositeDisposable.add(
@@ -77,6 +91,11 @@ class MainViewModel : ViewModel() {
 
     private fun onError(t: Throwable) {
         error.value = t.message?: "Api Failure"
+        progressStatus.value = false
+    }
+
+    private fun onErrorE(e: Exception) {
+        error.value = e.message?: "Api Failure"
         progressStatus.value = false
     }
 
